@@ -485,7 +485,7 @@ def priority(todo, line):
 
 
 @Todo._extracts('CATEGORIES')
-def categories(todo, line):   # GLS: ???: want a list of just str/unicode?
+def categories(todo, line): # GLS: ???: want list or just a colon-separated str?
     todo.categories = line.value.split(',') if line else None
     #todo.categories = line.value if line else None
 
