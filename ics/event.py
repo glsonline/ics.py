@@ -22,6 +22,10 @@ from .utils import (
 )
 from .parse import ContentLine, Container
 
+# TODO: GLS: # https://tools.ietf.org/html/rfc5545#page-56
+# TODO: GLS: fail gracefully when parsing errors for incoming file
+import sys
+
 
 class Event(Component):
 
@@ -282,8 +286,46 @@ def start(event, line):
     if line:
         # get the dict of vtimezones passed to the classmethod
         tz_dict = event._classmethod_kwargs['tz']
-        event.begin = iso_to_arrow(line, tz_dict)
+        # TODO: GLS: temp while testing: fail from parsing errors gracefully
+        try:
+            event.begin = iso_to_arrow(line, tz_dict)
+        except arrow.parser.ParserError:
+            print('\n\t***** GLS: Parsing error encountered: *****')
+            print('event: {}\nline: {}\n'.format(event, line)) # GLS: debugging
+            #print('line: {0}'.format(line))   # GLS: debugging
+            sys.exit(0)
+        #event.begin = iso_to_arrow(line, tz_dict)
         event._begin_precision = iso_precision(line.value)
+
+# TODO: GLS: the current traceback:
+#Traceback (most recent call last):
+#File "main.py", line 66, in <module>
+    #cal = Calendar(urlopen(url).read().decode('iso-8859-1'))
+#File "/home/gellis/virtualenvs/glscal-test1/local/lib/python2.7/site-packages/ics-0.3_dev-py2.7.egg/ics/icalendar.py", line 84, in __init__
+    #self._populate(container[0])  # Use first calendar
+#File "/home/gellis/virtualenvs/glscal-test1/local/lib/python2.7/site-packages/ics-0.3_dev-py2.7.egg/ics/component.py", line 52, in _populate
+    #extractor.function(self, lines)  # Send a list or empty list
+#File "/home/gellis/virtualenvs/glscal-test1/local/lib/python2.7/site-packages/ics-0.3_dev-py2.7.egg/ics/icalendar.py", line 278, in events
+    #calendar.events = list(map(event_factory, lines))
+#File "/home/gellis/virtualenvs/glscal-test1/local/lib/python2.7/site-packages/ics-0.3_dev-py2.7.egg/ics/icalendar.py", line 277, in <lambda>
+    #event_factory = lambda x: Event._from_container(x, tz=calendar._timezones)
+#File "/home/gellis/virtualenvs/glscal-test1/local/lib/python2.7/site-packages/ics-0.3_dev-py2.7.egg/ics/component.py", line 31, in _from_container
+    #k._populate(container)
+#File "/home/gellis/virtualenvs/glscal-test1/local/lib/python2.7/site-packages/ics-0.3_dev-py2.7.egg/ics/component.py", line 55, in _populate
+    #extractor.function(self, lines[0])  # Send the element
+#File "/home/gellis/virtualenvs/glscal-test1/local/lib/python2.7/site-packages/ics-0.3_dev-py2.7.egg/ics/event.py", line 289, in start
+    #event.begin = iso_to_arrow(line, tz_dict)
+#File "/home/gellis/virtualenvs/glscal-test1/local/lib/python2.7/site-packages/ics-0.3_dev-py2.7.egg/ics/utils.py", line 50, in iso_to_arrow
+    #return arrow.get(val)
+#File "/usr/local/lib/python2.7/dist-packages/arrow-0.4.2-py2.7.egg/arrow/api.py", line 23, in get
+    #return _factory.get(*args, **kwargs)
+#File "/usr/local/lib/python2.7/dist-packages/arrow-0.4.2-py2.7.egg/arrow/factory.py", line 142, in get
+    #dt = parser.DateTimeParser(locale).parse_iso(arg)
+#File "/usr/local/lib/python2.7/dist-packages/arrow-0.4.2-py2.7.egg/arrow/parser.py", line 95, in parse_iso
+    #return self._parse_multiformat(string, formats)
+#File "/usr/local/lib/python2.7/dist-packages/arrow-0.4.2-py2.7.egg/arrow/parser.py", line 209, in _parse_multiformat
+    #raise ParserError('Could not match input to any of {0}'.format(formats))
+#arrow.parser.ParserError: Could not match input to any of ['YYYY-MM-DDTHH:mm']
 
 
 @Event._extracts('DURATION')

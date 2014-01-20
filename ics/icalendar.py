@@ -15,6 +15,8 @@ import collections
 from .component import Component
 from .event import Event
 from .eventlist import EventList
+from .todo import Todo
+from .todolist import TodoList
 from .parse import (
     lines_to_container,
     string_to_container,
@@ -24,6 +26,13 @@ from .parse import (
 from .utils import remove_x
 
 
+# GLS: Design Questions for pyics:
+# ICS File Parsing Failures:
+# ???: how to fall out gracefully / send an Exception back up the stack?
+# ???: How to determine/display the offending Component programatically w/o
+#      print statements?
+# ???: How do you want to handle Categories: as string or list?
+
 class Calendar(Component):
 
     """Represents an unique rfc5545 iCalendar."""
@@ -32,12 +41,13 @@ class Calendar(Component):
     _EXTRACTORS = []
     _OUTPUTS = []
 
-    def __init__(self, imports=None, events=None, creator=None):
+    def __init__(self, imports=None, events=None, todos=None, creator=None):
         """Instanciates a new Calendar.
 
         Args:
             imports (string or list of lines/strings): data to be imported into the Calendar(),
             events (list of Events or EventList): will be casted to :class:`ics.eventlist.EventList`
+            todos (list of Todos or TodoList): will be casted to :class:`ics.todolist.TodoList`
             creator (string): uid of the creator program.
 
         If `imports` is specified, __init__ ignores every other argument.
@@ -46,12 +56,15 @@ class Calendar(Component):
 
         self._timezones = {}
         self._events = EventList()
+        self._todos = TodoList()
         self._unused = Container(name='VCALENDAR')
         self.scale = None
         self.method = None
 
         if events is None:
             events = EventList()
+        if todos is None:
+            todos = TodoList()
 
         if imports is not None:
             if PY2 and isinstance(imports, unicode):
@@ -71,6 +84,7 @@ class Calendar(Component):
             self._populate(container[0])  # Use first calendar
         else:
             self._events = events
+            self._todos = todos
             self._creator = creator
 
     def __urepr__(self):
@@ -79,8 +93,9 @@ class Calendar(Component):
 
         Should not be used directly. Use self.__repr__ instead.
         """
-        return "<Calendar with {} event{}>" \
-            .format(len(self.events), "s" if len(self.events) > 1 else "")
+        return "<Calendar with {} event{}, {} todo{}>" \
+            .format(len(self.events), "s" if len(self.events) > 1 else "",
+            len(self.todos), "s" if len(self.todos) > 1 else "")
 
     def __iter__(self):
         """Returns:
@@ -91,6 +106,7 @@ class Calendar(Component):
             Can be used to write calendar to a file:
 
             >>> c = Calendar(); c.append(Event(name="My cool event"))
+            >>> c.append(Todo(name="My cool todo"))
             >>> open('my.ics', 'w').writelines(c)
         """
         for line in str(self).split('\n'):
@@ -102,8 +118,13 @@ class Calendar(Component):
     def __eq__(self, other):
         if len(self.events) != len(other.events):
             return False
+        if len(self.todos) != len(other.todos):
+            return False
         for i in range(len(self.events)):
             if not self.events[i] == other.events[i]:
+                return False
+        for i in range(len(self.todos)):
+            if not self.todos[i] == other.todos[i]:
                 return False
         for attr in ('_unused', 'scale', 'method', 'creator'):
             if self.__getattribute__(attr) != other.__getattribute__(attr):
@@ -125,6 +146,17 @@ class Calendar(Component):
         """
         return self._events
 
+    @property
+    def todos(self):
+        """Get or set the list of calendar's todos.
+
+        |  Will return an TodoList object (similar to python list).
+        |  May be set to a list or an TodoList
+            (otherwise will raise a ValueError).
+        |  If setted, will override all pre-existing todos.
+        """
+        return self._todos
+
     @events.setter
     def events(self, value):
         if isinstance(value, EventList):
@@ -134,6 +166,16 @@ class Calendar(Component):
         else:
             raise ValueError(
                 'Calendar.events must be an EventList or an iterable')
+
+    @todos.setter
+    def todos(self, value): # GLS: ???: why no complaint re: duplicate defns?
+        if isinstance(value, TodoList):
+            self._todos = value
+        elif isinstance(value, collections.Iterable):
+            self._todos = TodoList(value)
+        else:
+            raise ValueError(
+                'Calendar.todos must be an TodoList or an iterable')
 
     @property
     def creator(self):
@@ -160,12 +202,15 @@ class Calendar(Component):
         clone = copy.copy(self)
         clone._unused = clone._unused.clone()
         clone.events = self.events.clone()
+        clone.todos = self.todos.clone()
         clone._timezones = copy.copy(self._timezones)
         return clone
 
     def __add__(self, other):
         events = self.events + other.events
-        return Calendar(events)
+        todos = self.todos + other.todos
+        return Calendar(events,todos)    # GLS: ???: not sure about this one!!!
+        #return Calendar(events)
 
 
 ######################
@@ -233,6 +278,14 @@ def events(calendar, lines):
     calendar.events = list(map(event_factory, lines))
 
 
+@Calendar._extracts('VTODO', multiple=True)
+def todos(calendar, lines):
+    # tz=calendar._timezones gives access to the todo factory to the
+    # timezones list
+    todo_factory = lambda x: Todo._from_container(x, tz=calendar._timezones)
+    calendar.todos = list(map(todo_factory, lines))
+
+
 ######################
 ###### Outputs #######
 
@@ -264,3 +317,9 @@ def o_method(calendar, container):
 def o_events(calendar, container):
     for event in calendar.events:
         container.append(str(event))
+
+
+@Calendar._outputs
+def o_todos(calendar, container):
+    for todo in calendar.todos:
+        container.append(str(todo))
