@@ -142,7 +142,7 @@ class Calendar(Component):
         |  Will return an EventList object (similar to python list).
         |  May be set to a list or an EventList
             (otherwise will raise a ValueError).
-        |  If setted, will override all pre-existing events.
+        |  If set, will override all pre-existing events.
         """
         return self._events
 
@@ -163,7 +163,7 @@ class Calendar(Component):
         |  Will return an TodoList object (similar to python list).
         |  May be set to a list or an TodoList
             (otherwise will raise a ValueError).
-        |  If setted, will override all pre-existing todos.
+        |  If set, will override all pre-existing todos.
         """
         return self._todos
 
