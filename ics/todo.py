@@ -257,7 +257,7 @@ class Todo(Component):
         """
         #TODO: GLS: DRY [1]
         if not force_empty_dues and not self._due: # GLS: do nothing
-            print "{}: check 1".format(__name__)
+            print('{}: check 1'.format(__name__))
             return
         if not self._due:
             self._due = arrow.now(tz='local')    # GLS: ???: which tz to use?
