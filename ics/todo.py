@@ -24,7 +24,7 @@ from .parse import ContentLine, Container
 
 # TODO: GLS: + add properties: due, duration
 # TODO: GLS: + remove properties:  end, begin
-# TODO: GLS: add property: percent
+# TODO: GLS: + add property: percent
 # TODO: GLS: add properties: completed, status, ...
 # TODO: GLS: apply DRY principle
 # TODO: GLS: verify properties: due vs. duration: Todo.due()
@@ -295,6 +295,7 @@ class Todo(Component):
             #return "<Todo {}begin:{} due:{}>".format(name, self.begin, self._due)
 
     # TODO: GLS: do these comparisons really make sense; when/how are they used?
+    # TODO: GLS: verify these comparison functions
     def __lt__(self, other):
         if not isinstance(other, Todo):
             raise NotImplementedError(
@@ -369,15 +370,15 @@ class Todo(Component):
             near_future='ddd',
             dist_future='ddd MMM D\n@ hh:mm a',
             ):
-        """Two todos are overdue if due < now
+        """Show fancy display of due date based on its value
         Return:
 
-        string: show fancy display of due date based on its value
+        string: "fancy" display of due date based on its value
         """
         now = arrow.now()
         # TODO: GLS: substitute _HUMAN_ str in all default params
         human = '_HUMAN_'
-        # map(if s.find(human) != -1) { s.replace(human, '{}'; s.format()})
+        # TODO: GLS: map(if s.find(human) != -1) { s.replace(human, '{}'; s.format()})
         # TODO: GLS: ???: also add color?
         if not self.has_due():   # nothing to do
             return u''
@@ -486,7 +487,7 @@ def priority(todo, line):
 
 
 @Todo._extracts('CATEGORIES')
-def categories(todo, line):   # GLS: ???: want a list of just str/unicode?
+def categories(todo, line): # GLS: ???: want list or just a colon-separated str/unicode?
     todo.categories = line.value.split(',') if line else None
     #todo.categories = line.value if line else None
 
